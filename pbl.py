@@ -24,7 +24,8 @@ class PBLCrawler():
         self.crawl_abuse_ssl()
         self.crawl_abuse_rw()
         self.crawl_abuse_bl()
-        #self.crawl_malwaredomainlist()
+        self.crawl_malwaredomainlist()
+        self.crawl_malcode()
 
     def crawl_abuse_ssl(self):
         print('Crawling abuse-ch-ssl')
@@ -171,6 +172,21 @@ class PBLCrawler():
                     print('Bad line')
 
         os.remove('export.csv')
+
+    def crawl_malcode(self):
+        print 'Crawling malcode...'
+        page = lib2.urlopen('http://malc0de.com/bl/BOOT')
+        contents = page.readlines()
+
+        i = 0
+
+        with open(os.path.join(self.dir, 'malcode', self.today.isoformat() + '.txt'), 'w') as fl:
+            for line in contents:
+                if 'PRIMARY' in line:
+                    fields = line.split()
+                    fl.write('null,' + fields[1] + '\n')
+
+
 
 
 
