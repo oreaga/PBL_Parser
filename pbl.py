@@ -18,7 +18,7 @@ class PBLCrawler():
 
     def __init__(self):
         self.dir = '/fs/sdsatumd/bl_domains/public_dumps/'
-        self.today = datetime.date.today()
+        self.today = datetime.date.today().isoformat()
 
     def crawl(self):
         self.crawl_abuse_ssl()
@@ -26,6 +26,7 @@ class PBLCrawler():
         self.crawl_abuse_bl()
         self.crawl_malwaredomainlist()
         self.crawl_malcode()
+        self.crawl_sagadc()
 
     def crawl_abuse_ssl(self):
         print('Crawling abuse-ch-ssl')
@@ -36,7 +37,7 @@ class PBLCrawler():
         date_pos, h_index = self.get_table_index(tree, 'Listing date')
         reason_pos, h_index = self.get_table_index(tree, 'Listing reason')
 
-        with open(os.path.join(self.dir, 'abuse-ch-ssl', self.today.isoformat() + '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'abuse-ch-ssl', self.today + '.txt'), 'w') as fl:
             i = 0
 
             for el in tree.iter('td'):
@@ -88,13 +89,20 @@ class PBLCrawler():
             url = url_base + page
             print(url)
             req = lib2.Request(url, None, headers)
-            site = lib2.urlopen(req)
+            i = 1
+            while(i < 6):
+                try:
+                    site = lib2.urlopen(req)
+                    break
+                except BadStatusLine:
+                    i += 1
+                    print 'Could not fetch {}, retrying for the {} time.'.format(url, i)
             tree = html.parse(site)
             date_pos, h_index = self.get_table_index(tree, 'Date')
             malware_pos, h_index = self.get_table_index(tree, 'Malware')
             name_pos, h_index = self.get_table_index(tree, 'Host')
 
-            with open(os.path.join(self.dir, 'abuse-ch-rw', self.today.isoformat() + '.txt'), 'w') as fl:
+            with open(os.path.join(self.dir, 'abuse-ch-rw', self.today + '.txt'), 'w') as fl:
                 for row in tree.iter('tr'):
                     i = 0
                     for el in row.iter('td'):
@@ -127,7 +135,7 @@ class PBLCrawler():
         contents = [x.rstrip('\n') for x in site.readlines()]
         print(d_url)
 
-        with open(os.path.join(self.dir, 'abuse-ch-bl', self.today.isoformat() +  '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'abuse-ch-bl', self.today +  '.txt'), 'w') as fl:
             for line in contents[:-1]:
                 if past_header is True:
                     fl.write('null,' + line + '\n')
@@ -144,7 +152,7 @@ class PBLCrawler():
         count = 0
         past_header = False
 
-        with open(os.path.join(self.dir, 'abuse-ch-bl', self.today.isoformat() +  '.txt'), 'a') as fl:
+        with open(os.path.join(self.dir, 'abuse-ch-bl', self.today +  '.txt'), 'a') as fl:
             for line in [x.strip('http://') for x in contents[:-1]]:
                 if past_header is True:
                     fl.write('null' + ',' + line + ',ransomware\n')
@@ -163,7 +171,7 @@ class PBLCrawler():
         lines = fl.readlines()
         fl.close()
 
-        with open(os.path.join(self.dir, 'malwaredomainlist', self.today.isoformat() +  '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'malwaredomainlist', self.today +  '.txt'), 'w') as fl:
             for line in lines:
                 fields = line.strip().split(',')
                 try:
@@ -180,16 +188,22 @@ class PBLCrawler():
 
         i = 0
 
-        with open(os.path.join(self.dir, 'malcode', self.today.isoformat() + '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'malcode', self.today + '.txt'), 'w') as fl:
             for line in contents:
                 if 'PRIMARY' in line:
                     fields = line.split()
                     fl.write('null,' + fields[1] + '\n')
 
+    def crawl_sagadc(self):
+        print 'Crawling sagadc...'
+        page = lib2.urlopen('http://dns-bh.sagadc.org/domains.txt')
+        contents = page.readlines()
 
-
-
-
+        with open(os.path.join(self.dir, 'sagadc', self.today + '.txt'), 'w') as fl:
+            for line in contents:
+                if line[0] != '#':
+                    fields = line.strip().split()
+                    fl.write('{},{},{}\n'.format(fields[-1], fields[0], fields[1]))
 
     # Takes string as input and returns a set of domains already retrieved from the site
     def get_domains(self, file):
