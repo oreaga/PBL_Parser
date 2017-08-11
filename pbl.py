@@ -6,7 +6,6 @@ import re
 import datetime
 import wget
 import requests
-import urllib2 as lib2
 from bs4 import BeautifulSoup
 
 
@@ -25,10 +24,73 @@ class PBLCrawler():
         self.crawl_abuse_rw()
         self.crawl_abuse_bl()
         self.crawl_malwaredomainlist()
+        self.crawl_hphost()
+        self.crawl_sans()
+        self.crawl_sagadc()
+        self.crawl_malcode()
+
+    def crawl_hphost(self):
+        print 'Crawling hphost...'
+        files = ["ad_servers.txt", "emd.txt", "exp.txt", "fsa.txt", "grm.txt", "hfs.txt", "hjk.txt", "mmt.txt", "pha.txt", "psh.txt", "pup.txt", "wrz.txt"]
+        classification = ["ad/tracking servers", "malware sites", "exploit sites", "fraud sites", "spam", "sites spamming the hpHosts forums", "hijack sites",\
+                          "misleading marketing", "illegal pharmacy sites", "phishing sites", "PUP sites", "warez/piracy sites"]
+
+        hphost_output = os.path.join(self.dir, "hphost")
+        if not os.path.exists(hphost_output):
+            os.makedirs(hphost_output)
+
+        for f in files:
+            url = "https://hosts-file.net/" + f
+            wget.download(url, out=hphost_output)
+
+        for i in range(len(files)):
+            filename = files[i]
+            classname = classification[i]
+            fl = open(os.path.join(hphost_output, filename), 'r')
+            lines = fl.readlines()
+            fl.close()
+
+            with open(os.path.join(hphost_output, self.today.isoformat() +  '.txt'), 'a') as fl:
+                for line in lines:
+                    fields = line.strip().split('\t')
+                    if len(fields) < 2:
+                        continue
+                    fl.write(self.today.isoformat() + ',' + fields[1].strip(' ') + ',' + classname + '\n')
+            os.remove(os.path.join(hphost_output, filename))
+
+
+    def crawl_sans(self):
+        print 'Crawling sans...'
+        files = ["suspiciousdomains_Low.txt", "suspiciousdomains_Medium.txt", "suspiciousdomains_High.txt"]
+
+        sans_output = os.path.join(self.dir, "sans")
+        if not os.path.exists(sans_output):
+            os.makedirs(sans_output)
+
+        for f in files:
+            url = "https://isc.sans.edu/feeds/" + f
+            wget.download(url, out= sans_output)
+
+        for i in range(len(files)):
+            filename = files[i]
+            classname = ''
+            fl = open(os.path.join(sans_output, filename), 'r')
+            lines = fl.readlines()
+            fl.close()
+
+            with open(os.path.join(sans_output, self.today.isoformat() +  '.txt'), 'a') as fl:
+                for line in lines:
+                    if line[0] == '#':
+                        continue
+                    domain = line.strip("\n")
+                    if domain == "Site":
+                        continue
+                    fl.write(self.today.isoformat() + ',' + domain.strip(' ') + ',' + classname + '\n')
+            os.remove(os.path.join(sans_output, filename))
 
     def crawl_abuse_ssl(self):
         print('Crawling abuse-ch-ssl')
-        site = requests.get('https://sslbl.abuse.ch/')
+        site = requests.get('https://sslbl.abuse.ch/')k
         tree = BeautifulSoup(site.text, 'lxml')
 
 
@@ -94,7 +156,7 @@ class PBLCrawler():
             malware_pos, h_index = self.get_table_index(tree, 'Malware')
             name_pos, h_index = self.get_table_index(tree, 'Host')
 
-            with open(os.path.join(self.dir, 'abuse-ch-rw', self.today.isoformat() + '.txt'), 'w') as fl:
+            with open(os.path.join(self.dir, 'abuse-ch-rw', self.today.isoformat() + '.txt'), 'a') as fl:
                 for row in tree.find_all('tr'):
                     i = 0
                     for el in row.find_all('td'):
@@ -173,7 +235,29 @@ class PBLCrawler():
 
         os.remove('export.csv')
 
+    def crawl_malcode(self):
+        print 'Crawling malcode...'
+        page = lib2.urlopen('http://malc0de.com/bl/BOOT')
+        contents = page.readlines()
 
+        i = 0
+
+        with open(os.path.join(self.dir, 'malcode', self.today + '.txt'), 'w') as fl:
+            for line in contents:
+                if 'PRIMARY' in line:
+                    fields = line.split()
+                    fl.write('null,' + fields[1] + '\n')
+
+    def crawl_sagadc(self):
+        print 'Crawling sagadc...'
+        page = lib2.urlopen('http://dns-bh.sagadc.org/domains.txt')
+        contents = page.readlines()
+
+        with open(os.path.join(self.dir, 'sagadc', self.today + '.txt'), 'w') as fl:
+            for line in contents:
+                if line[0] != '#':
+                    fields = line.strip().split()
+                    fl.write('{},{},{}\n'.format(fields[-1], fields[0], fields[1]))
 
 
     # Takes string as input and returns a set of domains already retrieved from the site
