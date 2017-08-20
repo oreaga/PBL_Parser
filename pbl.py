@@ -6,6 +6,7 @@ import re
 import datetime
 import wget
 import requests
+import urllib2 as lib2
 from bs4 import BeautifulSoup
 
 
@@ -73,7 +74,7 @@ class PBLCrawler():
 
         for i in range(len(files)):
             filename = files[i]
-            classname = ''
+            classname = 'null'
             fl = open(os.path.join(sans_output, filename), 'r')
             lines = fl.readlines()
             fl.close()
@@ -90,7 +91,7 @@ class PBLCrawler():
 
     def crawl_abuse_ssl(self):
         print('Crawling abuse-ch-ssl')
-        site = requests.get('https://sslbl.abuse.ch/')k
+        site = requests.get('https://sslbl.abuse.ch/')
         tree = BeautifulSoup(site.text, 'lxml')
 
 
@@ -229,7 +230,7 @@ class PBLCrawler():
             for line in lines:
                 fields = line.strip().split(',')
                 try:
-                    fl.write('{}-{}-{}'.format(fields[0][1:5], fields[0][6:8], fields[0][9:11]) + ',' + fields[1].strip('\"') + ',' + fields[4].strip('\"') + '\n')
+                    fl.write('{}-{}-{}'.format(fields[0][1:5], fields[0][6:8], fields[0][9:11]) + ',' + fields[1].strip('\"') + ',' + fields[4].strip('\"') + ',null\n')
                 except IndexError:
                     print('Bad line')
 
@@ -242,18 +243,18 @@ class PBLCrawler():
 
         i = 0
 
-        with open(os.path.join(self.dir, 'malcode', self.today + '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'malcode', str(self.today) + '.txt'), 'w') as fl:
             for line in contents:
                 if 'PRIMARY' in line:
                     fields = line.split()
-                    fl.write('null,' + fields[1] + '\n')
+                    fl.write('null,' + fields[1] + ',null\n')
 
     def crawl_sagadc(self):
         print 'Crawling sagadc...'
         page = lib2.urlopen('http://dns-bh.sagadc.org/domains.txt')
         contents = page.readlines()
 
-        with open(os.path.join(self.dir, 'sagadc', self.today + '.txt'), 'w') as fl:
+        with open(os.path.join(self.dir, 'sagadc', str(self.today) + '.txt'), 'w') as fl:
             for line in contents:
                 if line[0] != '#':
                     fields = line.strip().split()
